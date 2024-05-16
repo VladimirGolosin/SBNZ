@@ -1,4 +1,5 @@
 package com.ftn.sbnz.service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.FileReader;
@@ -6,18 +7,24 @@ import java.io.IOException;
 import java.time.LocalDate;
 import com.ftn.sbnz.dto.CultureAnswerDTO;
 import com.ftn.sbnz.dto.CultureQuestionRequestDTO;
+import com.ftn.sbnz.model.models.PlantingTime;
+import com.ftn.sbnz.repo.PlantingTimeRepository;
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvValidationException;
 
 @Service
 public class CultureQuestionService {
 
+    @Autowired
+    private PlantingTimeRepository plantingTimeRepository;
+
     public CultureAnswerDTO processCultureQuestion(CultureQuestionRequestDTO requestDTO) {
         String culture = requestDTO.getCulture();
         String plantingInstructions = getPlantingInstructionsFromKnowledgeSource(culture);
-        LocalDate bestPlantingDate = getBestPlantingDateFromKnowledgeSource(culture);
+        LocalDate bestPlantingDateStart = getBestPlantingStartDate(culture);
+        LocalDate bestPlantingDateEnd = getBestPlantingEndDate(culture);
         LocalDate currentDate = LocalDate.now();
-        boolean isRightTime = isRightTimeToPlant(currentDate, bestPlantingDate);
+        boolean isRightTime = isItRightTimeToPlant(currentDate, bestPlantingDateStart, bestPlantingDateEnd);
         return new CultureAnswerDTO(plantingInstructions, isRightTime);
     }
 
@@ -52,16 +59,27 @@ public class CultureQuestionService {
         return "Instructions not found for culture: " + culture;
     }
 
-    private LocalDate getBestPlantingDateFromKnowledgeSource(String culture) {
-        // Implementirajte logiku za dobijanje najboljeg datuma za sadnju iz izvora znanja
-        // Na primer, možete pristupiti bazi podataka ili vanjskom servisu
-        // Ovde biste trebali vratiti LocalDate objekat koji predstavlja najbolji datum za sadnju
-        return LocalDate.now(); // Dummy implementacija, vraća trenutni datum
+     public LocalDate getBestPlantingStartDate(String culture) {
+        PlantingTime plantingTime = plantingTimeRepository.findByCulture(culture);
+        if (plantingTime != null) {
+            return plantingTime.getStartDate();
+        }
+        return null;
     }
 
-    private boolean isRightTimeToPlant(LocalDate currentDate, LocalDate bestPlantingDate) {
-        // Implementirajte logiku za upoređivanje trenutnog datuma sa najboljim datumom za sadnju
-        // Na primer, možete proveriti da li je trenutni datum blizu najboljeg datuma za sadnju
-        return currentDate.isEqual(bestPlantingDate) || currentDate.isBefore(bestPlantingDate);
+    public LocalDate getBestPlantingEndDate(String culture) {
+        PlantingTime plantingTime = plantingTimeRepository.findByCulture(culture);
+        if (plantingTime != null) {
+            return plantingTime.getEndDate();
+        }
+        return null;
     }
+
+    private boolean isItRightTimeToPlant(LocalDate currentDate, LocalDate bestPlantingDateStart, LocalDate bestPlantingDateEnd) {
+        if (bestPlantingDateStart != null && bestPlantingDateEnd != null) {
+            return !currentDate.isBefore(bestPlantingDateStart) && !currentDate.isAfter(bestPlantingDateEnd);
+        }
+        return false;
+    }
+    
 }
